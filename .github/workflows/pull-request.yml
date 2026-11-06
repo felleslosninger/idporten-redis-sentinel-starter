@@ -1,3 +1,8 @@
+# The shared docs also list the trigger type "edited" so the title check reruns
+# on title changes. It is left out on purpose: ticking a box in the PR checklist
+# is also an edit and would rerun the full build every time. The checklist has
+# its own light workflow (pr-check-checklist.yml) on "edited" instead.
+
 name: Pull request
 
 on:
@@ -6,7 +11,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - edited
     branches:
       - main
 
@@ -16,7 +20,4 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    with:
-      # Default is 25. The library targets Java 21 (pom.xml) so applications still on 21 can use it.
-      java-version: 21
     secrets: inherit

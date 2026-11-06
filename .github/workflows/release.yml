@@ -12,8 +12,6 @@ jobs:
       contents: read
       packages: write
     with:
-      # Default is 25. The library targets Java 21 (pom.xml) so applications still on 21 can use it.
-      java-version: 21
       package-version: ${{ github.event.release.tag_name }}
       deployment-repository: ${{ github.repository }}
     secrets: inherit

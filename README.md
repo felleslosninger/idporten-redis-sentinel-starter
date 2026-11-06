@@ -43,7 +43,7 @@ management:
 ## Requirements
 
 * Spring Boot 4 with `spring-boot-starter-data-redis` (Lettuce, the default client)
-* Java 21
+* Java 25
 
 The starter does nothing unless a `RedisConnectionFactory` bean exists, so it is safe on the classpath of an
 application that only uses Redis in some profiles.
