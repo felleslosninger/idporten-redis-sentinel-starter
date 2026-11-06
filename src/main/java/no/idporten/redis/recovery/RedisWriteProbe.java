@@ -7,7 +7,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.core.types.Expiration;
 
 import java.nio.charset.StandardCharsets;
@@ -48,7 +48,7 @@ public class RedisWriteProbe {
             return Result.WRITABLE;
         }
         try (RedisConnection connection = factory.getConnection()) {
-            connection.stringCommands().set(probeKey, new byte[]{1}, Expiration.seconds(PROBE_KEY_TTL_SECONDS), SetOption.UPSERT);
+            connection.stringCommands().set(probeKey, new byte[]{1}, SetCondition.upsert(), Expiration.seconds(PROBE_KEY_TTL_SECONDS));
             return Result.WRITABLE;
         } catch (RuntimeException e) {
             if (isReadOnly(e)) {

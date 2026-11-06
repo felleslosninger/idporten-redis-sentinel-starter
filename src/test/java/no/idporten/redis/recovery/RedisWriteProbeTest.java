@@ -14,7 +14,7 @@ import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStringCommands;
-import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.core.types.Expiration;
 
 import java.nio.charset.StandardCharsets;
@@ -59,12 +59,12 @@ class RedisWriteProbeTest {
     @DisplayName("then a successful write is WRITABLE, uses a short-lived key, and closes the connection")
     void successfulWriteIsWritable() {
         connectionAvailable();
-        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(Expiration.class), eq(SetOption.UPSERT))).thenReturn(true);
+        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(SetCondition.class), any(Expiration.class))).thenReturn(true);
 
         assertThat(probe.probe()).isEqualTo(RedisWriteProbe.Result.WRITABLE);
 
         var expiration = ArgumentCaptor.forClass(Expiration.class);
-        verify(stringCommands).set(eq(PROBE_KEY), any(byte[].class), expiration.capture(), eq(SetOption.UPSERT));
+        verify(stringCommands).set(eq(PROBE_KEY), any(byte[].class), any(SetCondition.class), expiration.capture());
         assertThat(expiration.getValue().getExpirationTimeInSeconds()).isEqualTo(RedisWriteProbe.PROBE_KEY_TTL_SECONDS);
         verify(connection).close();
     }
@@ -73,7 +73,7 @@ class RedisWriteProbeTest {
     @DisplayName("then a READONLY answer is READ_ONLY and the connection is closed")
     void readOnlyAnswerIsReadOnly() {
         connectionAvailable();
-        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(Expiration.class), eq(SetOption.UPSERT)))
+        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(SetCondition.class), any(Expiration.class)))
                 .thenThrow(new RedisSystemException("Error in execution", new RedisReadOnlyException("READONLY You can't write against a read only replica.")));
 
         assertThat(probe.probe()).isEqualTo(RedisWriteProbe.Result.READ_ONLY);
@@ -85,7 +85,7 @@ class RedisWriteProbeTest {
     @DisplayName("then any other failure is UNAVAILABLE and the connection is closed")
     void otherFailureIsUnavailable() {
         connectionAvailable();
-        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(Expiration.class), eq(SetOption.UPSERT)))
+        when(stringCommands.set(eq(PROBE_KEY), any(byte[].class), any(SetCondition.class), any(Expiration.class)))
                 .thenThrow(new RedisSystemException("Error in execution", new RuntimeException("NOREPLICAS Not enough good replicas to write.")));
 
         assertThat(probe.probe()).isEqualTo(RedisWriteProbe.Result.UNAVAILABLE);
