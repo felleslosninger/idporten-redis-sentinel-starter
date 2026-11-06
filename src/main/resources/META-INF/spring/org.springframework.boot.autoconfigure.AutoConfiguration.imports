@@ -1,0 +1,2 @@
+no.idporten.redis.autoconfigure.RedisSentinelReadFromAutoConfiguration
+no.idporten.redis.autoconfigure.RedisReadOnlyRecoveryAutoConfiguration

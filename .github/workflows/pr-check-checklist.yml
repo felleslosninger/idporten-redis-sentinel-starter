@@ -1,0 +1,30 @@
+name: PR check checklist
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - edited
+    branches:
+      - main
+
+jobs:
+  validate-pr-checklist:
+    name: Validate PR checklist
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: read
+    steps:
+      - name: Fail if the PR body has unchecked items
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          unchecked=$(printf '%s\n' "$PR_BODY" | grep -E '^\s*[-*] \[ \]' || true)
+          if [ -n "$unchecked" ]; then
+            echo "::error::Alle punkta i sjekklista må vere avkryssa før PR-en kan mergast:"
+            echo "$unchecked"
+            exit 1
+          fi
+          echo "Alle punkta i sjekklista er avkryssa."
