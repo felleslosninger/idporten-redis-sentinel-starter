@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: idporten-redis-sentinel-starter
+  description: Spring Boot starter that keeps Lettuce on the Redis Sentinel master and recovers from READONLY
+spec:
+  type: library
+  lifecycle: production
+  owner: team-idporten

@@ -1,0 +1,22 @@
+name: Pull request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+    branches:
+      - main
+
+jobs:
+  pull-request-checks:
+    uses: felleslosninger/github-workflows/.github/workflows/ci-pr-checks-lib.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      # Default is 25. The library targets Java 21 (pom.xml) so applications still on 21 can use it.
+      java-version: 21
+    secrets: inherit
