@@ -118,16 +118,6 @@ The request that hit READONLY still fails; recovery runs in the background.
 In unit tests without a Redis server, set `idporten.redis-sentinel.recovery.enabled: false` to avoid probe warnings,
 and `idporten.redis-sentinel.warmup.enabled: false` to avoid the connect attempt at startup. The startup log line stays.
 
-## Migrating from an application-local copy
-
-idporten-login carried the first version of this under `no.idporten.integration.redis.recovery` (ID-7167). To switch:
-
-1. Add the dependency and delete the local `RedisReadOnlyRecovery`, `RedisWriteProbe` and `RedisRecoveryProperties`
-   with their tests.
-2. Rename properties from `idporten.redis-recovery.*` to `idporten.redis-sentinel.recovery.*`.
-3. Keep calling `redisReadOnlyRecovery.onReadOnly()` from the application's own exception handling if it has one, now
-   importing the class from `no.idporten.redis.recovery`.
-
 ## Not covered
 
 * Spring Boot 3 applications: the recovery classes compile against Boot 3, but the read-from customizer uses the
