@@ -1,6 +1,7 @@
 package no.idporten.redis.autoconfigure;
 
 import no.idporten.redis.config.RedisConnectionStartupLogger;
+import no.idporten.redis.config.RedisConnectionWarmup;
 import no.idporten.redis.config.RedisSentinelProperties;
 import no.idporten.redis.recovery.RedisReadOnlyRecovery;
 import no.idporten.redis.recovery.RedisWriteProbe;
@@ -19,8 +20,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 /**
- * READONLY detection and recovery for any application with a Redis connection factory. The startup log line is
- * registered here too, so it is available whenever the factory is.
+ * READONLY detection and recovery for any application with a Redis connection factory. The startup log line and
+ * the connection warm-up are registered here too, so they are available whenever the factory is.
  */
 @AutoConfiguration(afterName = "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration")
 @ConditionalOnClass(LettuceConnectionFactory.class)
@@ -34,6 +35,13 @@ public class RedisReadOnlyRecoveryAutoConfiguration {
     @ConditionalOnMissingBean
     RedisConnectionStartupLogger redisConnectionStartupLogger(ObjectProvider<RedisConnectionFactory> connectionFactory) {
         return new RedisConnectionStartupLogger(connectionFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "idporten.redis-sentinel.warmup", name = "enabled", havingValue = "true", matchIfMissing = true)
+    RedisConnectionWarmup redisConnectionWarmup(ObjectProvider<RedisConnectionFactory> connectionFactory) {
+        return new RedisConnectionWarmup(connectionFactory);
     }
 
     @Bean
