@@ -1,6 +1,7 @@
 package no.idporten.redis.autoconfigure;
 
 import no.idporten.redis.config.RedisConnectionStartupLogger;
+import no.idporten.redis.config.RedisConnectionWarmup;
 import no.idporten.redis.config.SentinelReadFromDefaultCustomizer;
 import no.idporten.redis.recovery.RedisReadOnlyRecovery;
 import no.idporten.redis.recovery.RedisWriteProbe;
@@ -41,7 +42,8 @@ class RedisSentinelStarterAutoConfigurationTest {
             assertThat(context).hasSingleBean(SentinelReadFromDefaultCustomizer.class)
                     .hasSingleBean(RedisReadOnlyRecovery.class)
                     .hasSingleBean(RedisWriteProbe.class)
-                    .hasSingleBean(RedisConnectionStartupLogger.class);
+                    .hasSingleBean(RedisConnectionStartupLogger.class)
+                    .hasSingleBean(RedisConnectionWarmup.class);
             LettuceConnectionFactory factory = context.getBean(LettuceConnectionFactory.class);
             assertThat(factory.isRedisSentinelAware()).isTrue();
             assertThat(readFromOf(factory)).isEqualTo("ReadFromUpstreamPreferred");
@@ -79,12 +81,23 @@ class RedisSentinelStarterAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("then the warm-up can be switched off while recovery stays")
+    void warmupCanBeDisabled() {
+        runner.withPropertyValues(SENTINEL_MASTER, SENTINEL_NODES, "idporten.redis-sentinel.warmup.enabled=false").run(context -> {
+            assertThat(context).doesNotHaveBean(RedisConnectionWarmup.class)
+                    .hasSingleBean(RedisReadOnlyRecovery.class)
+                    .hasSingleBean(RedisConnectionStartupLogger.class);
+        });
+    }
+
+    @Test
     @DisplayName("then recovery can be switched off while the startup log stays")
     void recoveryCanBeDisabled() {
         runner.withPropertyValues(SENTINEL_MASTER, SENTINEL_NODES, "idporten.redis-sentinel.recovery.enabled=false").run(context -> {
             assertThat(context).doesNotHaveBean(RedisReadOnlyRecovery.class)
                     .doesNotHaveBean(RedisWriteProbe.class)
                     .hasSingleBean(RedisConnectionStartupLogger.class)
+                    .hasSingleBean(RedisConnectionWarmup.class)
                     .hasSingleBean(SentinelReadFromDefaultCustomizer.class);
         });
     }
@@ -98,6 +111,7 @@ class RedisSentinelStarterAutoConfigurationTest {
                 .run(context -> assertThat(context)
                         .doesNotHaveBean(RedisReadOnlyRecovery.class)
                         .doesNotHaveBean(RedisConnectionStartupLogger.class)
+                        .doesNotHaveBean(RedisConnectionWarmup.class)
                         // the customizer is registered regardless: it is consumed by whoever creates the factory
                         .hasSingleBean(SentinelReadFromDefaultCustomizer.class));
     }

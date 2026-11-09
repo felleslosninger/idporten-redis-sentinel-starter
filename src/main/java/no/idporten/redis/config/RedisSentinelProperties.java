@@ -19,6 +19,8 @@ public class RedisSentinelProperties {
      */
     private boolean defaultReadFrom = true;
 
+    private final Warmup warmup = new Warmup();
+
     private final Recovery recovery = new Recovery();
 
     public boolean isDefaultReadFrom() {
@@ -29,8 +31,30 @@ public class RedisSentinelProperties {
         this.defaultReadFrom = defaultReadFrom;
     }
 
+    public Warmup getWarmup() {
+        return warmup;
+    }
+
     public Recovery getRecovery() {
         return recovery;
+    }
+
+    public static class Warmup {
+
+        /**
+         * Open the shared Lettuce connections on {@code ApplicationStartedEvent}, before the application reports
+         * liveness and readiness, so the first readiness probe does not pay for the Sentinel topology discovery.
+         */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
     }
 
     public static class Recovery {
