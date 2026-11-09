@@ -51,10 +51,16 @@ section "Redis READONLY recovery" (branch ID-7167); do not re-derive it here.
   and separately. Boot's `redis` health indicator is the reactive one (`DataRedisReactiveHealthIndicator`), so the
   first readiness probe opens a connection nothing else in the app has used, even when sessions are already
   connected. With a read-from, opening it is a full Master/Replica topology discovery: Sentinel lookup, then connect
-  and ping against every node, each unreachable node costing a connect-timeout (Boot default 10 s).
-- Boot has no property for `LettuceConnectionFactory.setEagerInitialization`, and `LettuceConnectionConfiguration`
-  creates the factory with no hook after construction. `initConnection()` is public and does what eager
-  initialization does: reset, then create both shared connections.
+  and ping against every node. The node connects are issued concurrently (`MasterReplicaTopologyRefresh`), so
+  unreachable nodes cost one connect-timeout per discovery stage, not one per node. Boot sets no connect-timeout of
+  its own; unset, Lettuce's `SocketOptions` default of 10 s applies.
+- Boot has no property for `LettuceConnectionFactory.setEagerInitialization`; a `BeanPostProcessor` could set it,
+  but eager initialization runs inside `start()` with no try/catch and fails the context when Redis is down.
+  `initConnection()` is public and is what eager initialization calls: it resets any open shared connection first,
+  then creates both. `validateConnection()` pings an open shared connection and only creates missing or dead ones,
+  for both the imperative and the reactive side, but does not check `shareNativeConnection`, so the warm-up must.
+  Spring Session's indexed repository opens the shared imperative connection during context refresh
+  (`CONFIG SET notify-keyspace-events`), which is why the warm-up must not reset.
 - `SpringApplication` publishes `ApplicationStartedEvent` and then `LivenessState.CORRECT`, synchronously, after
   the web server is listening. A listener on the started event therefore runs inside the startup-probe window.
 
@@ -71,10 +77,21 @@ section "Redis READONLY recovery" (branch ID-7167); do not re-derive it here.
   owns the read-from default too, so one prefix for the whole starter. The README documents the rename.
 - **The probe stays quiet during an outage.** It logs only when its result changes, so test environments without
   Redis do not get a warning every 5 seconds. Disable it in unit tests with `idporten.redis-sentinel.recovery.enabled=false`.
+- **The warm-up has no deadline of its own.** It runs on the main thread while liveness is still BROKEN, bounded
+  only by Lettuce: `spring.data.redis.timeout` for the Sentinel lookup and topology refresh, done once per shared
+  connection, plus `spring.data.redis.connect-timeout` per node. Worst case is a half-open Sentinel or node, about
+  2 × command timeout + connect timeout; with Boot's defaults (60 s, 10 s) that exceeds the 150 s startup window,
+  with the values idporten-cd should set (3 s, 1 s, see ID-7177) it is seconds. A bounded wait on a separate thread
+  was considered and rejected for now: the factory lock would stay held by the abandoned connect, so the first
+  Redis use would block anyway, and liveness CORRECT before Redis is reachable buys nothing.
 - **Warm-up as an event listener, not `eagerInitialization=true`.** Eager initialization runs inside
   `LettuceConnectionFactory.start()` and fails the context when Redis is unreachable, which would turn a Redis outage
-  into a crash loop for every starting pod. The listener calls `initConnection()` in a try/catch and logs instead,
-  so the pod starts and reports readiness DOWN exactly as it did before the warm-up existed.
+  into a crash loop for every starting pod. The listener calls `validateConnection()` in a try/catch and logs
+  instead, so the pod starts and reports readiness DOWN exactly as it did before the warm-up existed. It runs
+  synchronously on the main thread: async would let the readiness probe arrive mid-discovery and block on the same
+  lock, which is the original bug. The trade-off is that a warm-up slower than the startup window restarts the pod
+  where it used to go readiness DOWN; with concurrent node connects that takes a hung DNS or a long command timeout,
+  not merely unreachable nodes.
 - **Explicit read-from always wins.** The customizer is only registered when Sentinel is configured and
   `spring.data.redis.lettuce.read-from` is unset (`SentinelWithoutReadFromCondition`), and it runs before Boot's
   Redis auto-configuration.

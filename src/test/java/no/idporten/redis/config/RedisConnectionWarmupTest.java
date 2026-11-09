@@ -59,7 +59,7 @@ class RedisConnectionWarmupTest {
 
         new RedisConnectionWarmup(connectionFactoryProvider).warmUp();
 
-        verify(connectionFactory).initConnection();
+        verify(connectionFactory).validateConnection();
         assertThat(messages(Level.INFO)).singleElement().asString().contains("shared connections ready");
         assertThat(messages(Level.WARN)).isEmpty();
     }
@@ -70,14 +70,14 @@ class RedisConnectionWarmupTest {
         when(connectionFactoryProvider.getIfAvailable()).thenReturn(connectionFactory);
         when(connectionFactory.getShareNativeConnection()).thenReturn(true);
         when(connectionFactory.isRunning()).thenReturn(true);
-        doThrow(new RedisConnectionFailureException("Unable to connect to sentinel:26379")).when(connectionFactory).initConnection();
+        doThrow(new RedisConnectionFailureException("Unable to connect to sentinel:26379")).when(connectionFactory).validateConnection();
 
         assertThatCode(() -> new RedisConnectionWarmup(connectionFactoryProvider).warmUp()).doesNotThrowAnyException();
 
         assertThat(messages(Level.WARN)).singleElement().asString()
                 .contains("warm-up failed")
                 .contains("RedisConnectionFailureException")
-                .doesNotContain("sentinel:26379");
+                .contains("Unable to connect to sentinel:26379");
     }
 
     @Test
@@ -88,7 +88,7 @@ class RedisConnectionWarmupTest {
 
         new RedisConnectionWarmup(connectionFactoryProvider).warmUp();
 
-        verify(connectionFactory, never()).initConnection();
+        verify(connectionFactory, never()).validateConnection();
         assertThat(messages(Level.INFO)).singleElement().asString().contains("skipped");
     }
 
@@ -101,8 +101,9 @@ class RedisConnectionWarmupTest {
 
         new RedisConnectionWarmup(connectionFactoryProvider).warmUp();
 
-        verify(connectionFactory, never()).initConnection();
-        assertThat(messages(Level.INFO)).singleElement().asString().contains("not started");
+        verify(connectionFactory, never()).validateConnection();
+        assertThat(messages(Level.INFO)).isEmpty();
+        assertThat(messages(Level.WARN)).isEmpty();
     }
 
     @Test

@@ -14,8 +14,14 @@ gets the same behaviour by adding one dependency.
    reported, so the startup probe covers the time it takes. Without this, the first readiness probe opens the
    reactive connection that Boot's `redis` health indicator uses, and with Sentinel and a read-from that is a full
    Master/Replica topology discovery (Sentinel lookup, then connect and ping against every node). Seen in prod at
-   14 s against a readiness timeout of 1 s. A pod that starts while Redis is down logs a warning and starts anyway;
-   the first use connects instead.
+   14 s against a readiness timeout of 1 s. A connection that is already open, e.g. one Spring Session opened
+   during context refresh, is pinged and kept. A pod that starts while Redis is down logs a warning and starts
+   anyway; the first use connects instead. The warm-up is bounded by Lettuce's timeouts only, so its worst case (a
+   Sentinel or node that accepts TCP but never answers) is about
+   `2 × spring.data.redis.timeout + spring.data.redis.connect-timeout`, which must fit inside the startup probe's
+   budget; with Lettuce's defaults (60 s and 10 s) it does not, so set both. Spring Data logs
+   `Validation of shared connection failed; Creating a new connection.` at INFO when the warm-up creates a
+   connection; that is the normal first-time path.
 2. **Defaults `read-from` to `upstream-preferred` when Sentinel is configured.** Without a read-from, Spring Data opens
    a plain connection that only re-resolves the master when the TCP connection dies. With it, Lettuce opens a
    Sentinel-aware Master/Replica connection that follows `+switch-master`. An explicit
